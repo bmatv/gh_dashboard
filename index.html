@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CSV Dashboard with Filters</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.34.0.min.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    .chart { width: 100%; max-width: 900px; height: 500px; margin-bottom: 40px; }
+  </style>
+</head>
+<body>
+  <h1>CSV Dashboard</h1>
+  <div id="chart1" class="chart"></div>
+  <div id="chart2" class="chart"></div>
+
+  <script>
+    function loadCSV(file, callback) {
+      Papa.parse(file, {
+        download: true,
+        header: true,
+        dynamicTyping: true,
+        complete: results => callback(results.data.filter(r => r.date))
+      });
+    }
+
+    function plotCSV(data, chartId) {
+      // Group rows by "name"
+      const grouped = {};
+      data.forEach(row => {
+        const name = row.name;
+        if (!grouped[name]) grouped[name] = { x: [], y: [] };
+        grouped[name].x.push(row.date);
+        grouped[name].y.push(row.value);
+      });
+
+      const traces = Object.keys(grouped).map(name => ({
+        x: grouped[name].x,
+        y: grouped[name].y,
+        mode: 'lines+markers',
+        name: name
+      }));
+
+      const layout = {
+        margin: { t: 40 },
+        xaxis: { title: 'Date', rangeslider: { visible: true } },
+        yaxis: { title: 'Value' },
+        updatemenus: [{
+          buttons: Object.keys(grouped).map(name => ({
+            method: "update",
+            args: [
+              { visible: Object.keys(grouped).map(n => n === name) },
+              { title: "Filtered: " + name }
+            ],
+            label: name
+          })).concat([{
+            method: "update",
+            args: [
+              { visible: Object.keys(grouped).map(() => true) },
+              { title: "All series" }
+            ],
+            label: "All"
+          })]),
+          direction: "down",
+          showactive: true,
+          x: 0.1,
+          xanchor: "left",
+          y: 1.15,
+          yanchor: "top"
+        }]
+      };
+
+      Plotly.newPlot(chartId, traces, layout);
+    }
+
+    loadCSV('file1.csv', data => plotCSV(data, 'chart1'));
+    loadCSV('file2.csv', data => plotCSV(data, 'chart2'));
+  </script>
+</body>
+</html>
